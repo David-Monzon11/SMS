@@ -1,0 +1,10 @@
+# Ignore logs
+logs/
+*.log
+
+# Ignore VSCode config
+.vscode/
+
+# Ignore sensitive files
+.env
+config.local.php
