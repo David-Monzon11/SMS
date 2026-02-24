@@ -1,6 +1,6 @@
 <?php
 
-$config = require 'config.php';
+$config = require __DIR__ . '/config.php';
 $firebaseUrl = $config['FIREBASE_DB_URL'];
 
 $raw = file_get_contents('php://input');
@@ -27,6 +27,5 @@ curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($firebaseData));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_exec($ch);
-curl_close($ch);
 
 echo json_encode(["status"=>"received"]);

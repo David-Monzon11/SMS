@@ -10,14 +10,24 @@ file_put_contents(
 );
 
 
-$config = require 'config.php';
+$config = require __DIR__ . '/config.php';
 
 $apiKey      = $config['SEMAPHORE_API_KEY'];
 $firebaseUrl = $config['FIREBASE_DB_URL'];
 
 function get_firebase_data($url)
 {
-    return json_decode(file_get_contents($url), true);
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+    $response = curl_exec($ch);
+
+    if ($response === false) {
+        return null;
+    }
+
+    return json_decode($response, true);
 }
 
 function update_firebase_status($firebaseUrl, $senderKey, $messageId, $status)
@@ -28,13 +38,15 @@ function update_firebase_status($firebaseUrl, $senderKey, $messageId, $status)
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($status));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_exec($ch);
-    curl_close($ch);
 }
 
 $smsLogs = get_firebase_data($firebaseUrl . "sms_logs.json");
 
-if (!$smsLogs) exit("No logs.");
+if (!$smsLogs) {
+    exit("No logs.");
+}
 
 foreach ($smsLogs as $senderKey => $messages) {
 
@@ -44,18 +56,25 @@ foreach ($smsLogs as $senderKey => $messages) {
 
             $url = "https://api.semaphore.co/api/v4/messages/$messageId?apikey=$apiKey";
 
-            $response = json_decode(file_get_contents($url), true);
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-            if (isset($response[0]['status'])) {
+            $response = curl_exec($ch);
 
-                $newStatus = $response[0]['status'];
+            if ($response !== false) {
+                $decoded = json_decode($response, true);
 
-                update_firebase_status(
-                    $firebaseUrl,
-                    $senderKey,
-                    $messageId,
-                    $newStatus
-                );
+                if (isset($decoded[0]['status'])) {
+                    $newStatus = $decoded[0]['status'];
+
+                    update_firebase_status(
+                        $firebaseUrl,
+                        $senderKey,
+                        $messageId,
+                        $newStatus
+                    );
+                }
             }
         }
     }

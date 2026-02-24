@@ -12,6 +12,6 @@ return [
         'BRANCH2'
     ],
     
-    'FIREBASE_DB_URL' => 'https://sms-57943-default-rtdb.firebaseio.com/'
+    'FIREBASE_DB_URL' => 'https://sms-488301-default-rtdb.firebaseio.com/'
 
 ];

@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 header('Content-Type: application/json');
 
-$config = require 'config.php';
+$config = require __DIR__ . '/config.php';
 
 $SEMAPHORE_API_KEY = $config['SEMAPHORE_API_KEY'];
 $SEMAPHORE_URL     = $config['SEMAPHORE_URL'];
@@ -57,7 +57,6 @@ function save_to_firebase($firebaseUrl, $senderKey, $messageId, $data)
         log_sms("FIREBASE_ERROR", curl_error($ch));
     }
 
-    curl_close($ch);
     return $response;
 }
 
@@ -156,8 +155,6 @@ if ($sms_response === false) {
         "message" => curl_error($ch)
     ]));
 }
-
-curl_close($ch);
 
 $result = json_decode($sms_response, true);
 
