@@ -133,8 +133,6 @@ function sendRequest($url, $method, $pit, $version, $payload)
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        curl_close($ch);
-
         if ($httpCode >= 500) {
             sleep(1);
         } else {
