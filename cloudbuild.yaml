@@ -1,0 +1,31 @@
+# Google Cloud Build: build and push the SMS API image for Cloud Run
+# Run from project root: gcloud builds submit --config=cloudbuild.yaml .
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/sms-api:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/sms-api:latest'
+      - '.'
+
+  # Push to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/sms-api:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/sms-api:latest'
+
+images:
+  - 'gcr.io/$PROJECT_ID/sms-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/sms-api:latest'
+
+options:
+    logging: CLOUD_LOGGING_ONLY

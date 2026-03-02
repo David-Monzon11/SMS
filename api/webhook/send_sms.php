@@ -1,12 +1,13 @@
 <?php
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
 header('Content-Type: application/json');
 
 $config = require __DIR__ . '/config.php';
+require __DIR__ . '/firestore_client.php';
 
 $SEMAPHORE_API_KEY = $config['SEMAPHORE_API_KEY'];
 $SEMAPHORE_URL     = $config['SEMAPHORE_URL'];
@@ -15,9 +16,10 @@ $SENDER_IDS        = $config['SENDER_IDS'];
 function log_sms($label, $data)
 {
     $log_line = "[" . date('Y-m-d H:i:s') . "] $label: " .
-        json_encode($data, JSON_PRETTY_PRINT) . "\n";
+        json_encode($data, JSON_PRETTY_PRINT);
 
-    file_put_contents('sms_log.txt', $log_line, FILE_APPEND);
+    // Send to Cloud Run logs (Cloud Logging)
+    error_log($log_line);
 }
 function clean_numbers($numberString)
 {
@@ -41,29 +43,12 @@ function clean_numbers($numberString)
     return $cleanNumbers;
 }
 
-function save_to_firebase($firebaseUrl, $senderKey, $messageId, $data)
-{
-    $url = rtrim($firebaseUrl, '/') . "/sms_logs/$senderKey/$messageId.json";
-
-    $ch = curl_init($url);
-
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-
-    $response = curl_exec($ch);
-
-    if ($response === false) {
-        log_sms("FIREBASE_ERROR", curl_error($ch));
-    }
-
-    return $response;
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    if (file_exists('last_payload.json')) {
-        echo file_get_contents('last_payload.json');
+    $payloadFile = sys_get_temp_dir() . '/last_payload.json';
+
+    if (file_exists($payloadFile)) {
+        echo file_get_contents($payloadFile);
     } else {
         echo json_encode([
             "status" => "empty",
@@ -123,8 +108,10 @@ if (empty($message)) {
         "message" => "Message cannot be empty"
     ]));
 }
+
+$payloadFile = sys_get_temp_dir() . '/last_payload.json';
 file_put_contents(
-    'last_payload.json',
+    $payloadFile,
     json_encode($payload, JSON_PRETTY_PRINT)
 );
 
@@ -166,22 +153,19 @@ if ($http_status == 200 && is_array($result)) {
         $message_id = $result['message_id'];
         $status     = $result['status'];
 
-        $firebase_data = [
-            "message_id"   => $message_id,
-            "numbers"      => $validNumbers,
-            "message"      => $message,
-            "sender_id"    => $sender,
-            "status"       => $status,
-            "date_created" => date("Y-m-d H:i:s"),
-            "source"       => "api"
-        ];
+        $db = get_firestore();
 
-        save_to_firebase(
-            $config['FIREBASE_DB_URL'],
-            $sender,
-            $message_id,
-            $firebase_data
-        );
+        $db->collection('sms_logs')
+            ->document($message_id)
+            ->set([
+                'message_id'   => $message_id,
+                'numbers'      => $validNumbers,
+                'message'      => $message,
+                'sender_id'    => $sender,
+                'status'       => $status,
+                'date_created' => new \Google\Cloud\Core\Timestamp(new \DateTime()),
+                'source'       => 'api',
+            ], ['merge' => true]);
     }
 }
 echo json_encode([
